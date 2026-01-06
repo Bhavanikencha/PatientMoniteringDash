@@ -1,0 +1,236 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ICU Monitor – Correct Alignment</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #010916;
+            color: white;
+            font-family: Arial;
+            overflow: hidden;
+        }
+
+        #patientSelect {
+            position: absolute;
+            top: 10px;
+            left: 200px;
+            z-index: 10;
+        }
+
+        /* LABELS */
+        #labels div {
+            position: absolute;
+            left: 20px;
+            font-weight: bold;
+        }
+
+        /* VALUES */
+        #values div {
+            position: absolute;
+            right: 20px;
+            font-weight: bold;
+        }
+
+        /* ROW POSITIONS */
+        .ecg {
+            top: 120px;
+            color: #00ff00
+        }
+
+        .resp {
+            top: 200px;
+            color: #ffff00
+        }
+
+        .pleth {
+            top: 280px;
+            color: #00ffff
+        }
+
+        .co2 {
+            top: 360px;
+            color: #ff00ff
+        }
+
+        .art {
+            top: 440px;
+            color: #ff8800
+        }
+
+        .cvp {
+            top: 520px;
+            color: #ff4444
+        }
+    </style>
+</head>
+
+<body>
+
+    <select id="patientSelect">
+        <option value="">Select Patient</option>
+    </select>
+
+    <!-- LABELS -->
+    <div id="labels">
+        <div class="ecg">ECG</div>
+        <div class="resp">RESP</div>
+        <div class="pleth">PLETH</div>
+        <div class="co2">CO₂</div>
+        <div class="art">ART</div>
+        <div class="cvp">CVP</div>
+    </div>
+
+    <!-- VALUES -->
+    <div id="values">
+        <div class="ecg" id="v_ecg"></div>
+        <div class="resp" id="v_resp"></div>
+        <div class="pleth" id="v_spo2"></div>
+        <div class="co2" id="v_co2"></div>
+        <div class="art" id="v_ibp"></div>
+        <div class="cvp" id="v_nibp"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+    <script>
+        /* ================= GLOBAL ================= */
+        let selectedPatient=null;
+        const vitals={};
+        let waves=[];
+
+        /* ================= ROW INDEX ================= */
+        const ROW_INDEX={
+            ECG:0,
+            RESP:1,
+            PLETH:2,
+            CO2:3,
+            ART:4,
+            CVP:5
+        };
+
+        const ROW_GAP=10;     // distance between waves
+        const ROW_TOP=25;     // top wave Y
+
+        function rowY(idx){
+            return ROW_TOP - idx*ROW_GAP;
+        }
+
+        /* ================= SIGNALR ================= */
+        const conn=new signalR.HubConnectionBuilder()
+        .withUrl("/VitalsHub")
+        .withAutomaticReconnect()
+        .build();
+
+        conn.on("ReceiveVitals",d=>{
+            vitals[d.patientId]=d;
+
+            if(!document.getElementById("opt_"+d.patientId)){
+                const o=document.createElement("option");
+                o.id="opt_"+d.patientId;
+                o.value=d.patientId;
+                o.text=d.patientName;
+                patientSelect.appendChild(o);
+            }
+
+            if(!selectedPatient){
+                selectedPatient=d.patientId;
+                patientSelect.value=d.patientId;
+                loadPatient(d.patientId);
+            }
+
+            if(selectedPatient==d.patientId) updateValues(d);
+        });
+
+        conn.start();
+
+        patientSelect.onchange=e=>{
+            selectedPatient=e.target.value;
+            loadPatient(selectedPatient);
+        };
+
+        /* ================= UI ================= */
+        function updateValues(v){
+            v_ecg.innerText  = v.ecg+" bpm";
+            v_resp.innerText = v.resp;
+            v_spo2.innerText = v.spO2+"%";
+            v_co2.innerText  = v.cO2;
+            v_ibp.innerText  = v.ibp;
+            v_nibp.innerText = v.nibp;
+        }
+
+        /* ================= THREE ================= */
+        const scene=new THREE.Scene();
+        const cam=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
+        cam.position.z=60;
+
+        const renderer=new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(innerWidth,innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        scene.add(new THREE.PointLight(0xffffff,1));
+
+        function ecgShape(x,a){
+            const m=x%6;
+            if(m<0.15)return a*2;
+            if(m<0.3)return -a*0.6;
+            return Math.sin(x*0.5)*a*0.2;
+        }
+
+        function wave(color,row,ampFn,f=1,ecg=false){
+            const pts=[];
+            for(let i=0;i<400;i++) pts.push(new THREE.Vector3(i*0.15,0,0));
+            const g=new THREE.BufferGeometry().setFromPoints(pts);
+            const l=new THREE.Line(g,new THREE.LineBasicMaterial({color}));
+            l.position.y=rowY(row);
+            scene.add(l);
+            let p=0;
+            return {line:l,update(){
+                const a=g.attributes.position.array;
+                const amp=ampFn()||0.1;
+                for(let i=0;i<a.length;i+=3){
+                    const x=a[i];
+                    a[i+1]=ecg?ecgShape(x+p,amp):Math.sin(x*f+p)*amp;
+                }
+                g.attributes.position.needsUpdate=true;
+                p+=0.25;
+            }};
+        }
+
+        function clearWaves(){
+            waves.forEach(w=>scene.remove(w.line));
+            waves=[];
+        }
+
+        /* ================= LOAD PATIENT ================= */
+        function loadPatient(id){
+            clearWaves();
+            const v=vitals[id];
+            updateValues(v);
+
+            waves=[
+                wave(0x00ff00,ROW_INDEX.ECG, ()=>v.ecg/20,2,true),
+                wave(0xffff00,ROW_INDEX.RESP,()=>v.resp/4,0.6),
+                wave(0x00ffff,ROW_INDEX.PLETH,()=>v.spO2/50),
+                wave(0xff00ff,ROW_INDEX.CO2,  ()=>v.cO2/10),
+                wave(0xff8800,ROW_INDEX.ART,  ()=>2),
+                wave(0xff4444,ROW_INDEX.CVP,  ()=>1)
+            ];
+        }
+
+        function animate(){
+            requestAnimationFrame(animate);
+            waves.forEach(w=>w.update());
+            renderer.render(scene,cam);
+        }
+        animate();
+    </script>
+
+</body>
+</html>
