@@ -1,40 +1,33 @@
 using Microsoft.EntityFrameworkCore;
-using PatientMo.Services;
 using PatinetMo.Data;
 using PatinetMo.Hubs;
 using PatinetMo.Services;
+using PatientMo.Services; // Namespace for VitalSimulationService
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
-builder.Services.AddControllersWithViews();
-
-// Add DbContext
+// --- 1. REGISTER DATABASE ---
+// Ensure "DefaultConnection" exists in your appsettings.json
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add SignalR
+// --- 2. REGISTER MVC (Controllers & Views) ---
+builder.Services.AddControllersWithViews();
+
+// --- 3. REGISTER SIGNALR (Real-Time) ---
 builder.Services.AddSignalR();
 
-// Add Services
+// --- 4. REGISTER CUSTOM SERVICES ---
+// AlertService is stateless, so Singleton is efficient
 builder.Services.AddSingleton<AlertService>();
-builder.Services.AddHostedService<VitalSimulationService>();
 
-// CORS for SignalR (important)
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins("https://localhost:5001") // Change if your UI runs on different port
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+// The Simulation Service runs in the background (Hosted Service)
+builder.Services.AddHostedService<VitalSimulationService>();
 
 var app = builder.Build();
 
-// Middleware
+// --- PIPELINE CONFIGURATION ---
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -43,14 +36,17 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
 app.UseRouting();
-app.UseCors();
+
 app.UseAuthorization();
 
-// Map controllers & hubs
+// --- 5. MAP ENDPOINTS ---
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Dashboard}/{action=Index}/{id?}");
+
+// This URL "/VitalsHub" MUST match what is in your JavaScript connection line
 app.MapHub<VitalsHub>("/VitalsHub");
 
 app.Run();

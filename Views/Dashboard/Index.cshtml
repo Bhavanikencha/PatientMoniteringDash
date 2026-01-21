@@ -16,7 +16,9 @@
             --panel-bg: #1a1a1a;
             --neon-green: #00ff41;
             --neon-red: #ff2a2a;
+            --neon-blue: #00f0ff;
             --text-main: #e0e0e0;
+            --text-dim: #888;
             --border: #333;
         }
 
@@ -80,18 +82,17 @@
 
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 15px;
         }
 
-        /* PATIENT CARD (CLEAN VERSION) */
+        /* TAB 1: MONITOR CARDS */
         .patient-card {
             background: #151515;
             border: 1px solid #333;
             border-radius: 6px;
             padding: 20px;
             position: relative;
-            transition: border-color 0.3s;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -105,17 +106,6 @@
             align-items: center;
         }
 
-        .p-details {
-            font-size: 13px;
-            color: #666;
-            line-height: 1.6;
-        }
-
-            .p-details strong {
-                color: #999;
-            }
-
-        /* BUTTON */
         .btn-monitor {
             margin-top: 10px;
             width: 100%;
@@ -135,7 +125,6 @@
                 color: #000;
             }
 
-        /* STATUS INDICATORS */
         .status-dot {
             height: 12px;
             width: 12px;
@@ -150,7 +139,6 @@
             box-shadow: 0 0 5px var(--neon-green);
         }
 
-        /* Razor Keyframe Escape */
         .status-crit {
             background: var(--neon-red);
             box-shadow: 0 0 10px var(--neon-red);
@@ -169,6 +157,105 @@
             100% {
                 opacity: 1;
             }
+        }
+
+        /* TAB 2: PATIENT DETAILS (FULL HISTORY) */
+        .details-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .detail-card {
+            background: #151515;
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 200px 1fr;
+        }
+
+        .dc-sidebar {
+            background: #111;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border-right: 1px solid #333;
+        }
+
+        .dc-photo {
+            width: 100px;
+            height: 100px;
+            background: #222;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+            font-size: 30px;
+        }
+
+        .dc-id {
+            font-family: monospace;
+            color: var(--neon-green);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .dc-content {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .info-group {
+            margin-bottom: 5px;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .info-val {
+            font-size: 14px;
+            color: #ddd;
+            font-weight: 500;
+            border-bottom: 1px solid #222;
+            padding-bottom: 4px;
+            display: block;
+        }
+
+        /* TAB 3: ALERTS */
+        .alert-item {
+            background: #1a0505;
+            border-left: 3px solid var(--neon-red);
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .alert-time {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .alert-msg {
+            color: #ffcece;
+            font-size: 14px;
         }
 
         /* MONITOR OVERLAY */
@@ -191,21 +278,6 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #333;
-        }
-
-        .mon-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #fff;
-        }
-
-        .mon-close {
-            background: #333;
-            border: none;
-            color: #fff;
-            padding: 8px 16px;
-            cursor: pointer;
-            border-radius: 4px;
         }
 
         .mon-grid {
@@ -231,11 +303,6 @@
             z-index: 10;
         }
 
-        .w-label {
-            font-size: 14px;
-            font-weight: bold;
-        }
-
         .w-val {
             font-size: 60px;
             font-weight: bold;
@@ -243,9 +310,8 @@
             font-family: 'Consolas', monospace;
         }
 
-        .w-unit {
-            font-size: 14px;
-            color: #888;
+        .text-fetal {
+            color: #ff00ff;
         }
 
         canvas {
@@ -255,55 +321,97 @@
             width: 100%;
             height: 100%;
         }
-
-        /* ALERT LIST */
-        .alert-item {
-            background: #1a0505;
-            border-left: 3px solid var(--neon-red);
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 0 4px 4px 0;
-        }
-
-        .alert-time {
-            font-size: 11px;
-            color: #888;
-            margin-bottom: 4px;
-            display: block;
-        }
-
-        .alert-msg {
-            color: #ffcece;
-            font-size: 14px;
-        }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
         <div class="brand">VITAL<span>TRACK</span></div>
-        <div class="nav-item active" onclick="showTab('patients', this)">PATIENTS</div>
+        <div class="nav-item active" onclick="showTab('monitor', this)">LIVE MONITOR</div>
+        <div class="nav-item" onclick="showTab('details', this)">PATIENT DETAILS</div>
         <div class="nav-item" onclick="showTab('alerts', this)">ALERT LOGS</div>
     </div>
 
     <div class="main-content">
-        <div id="tab-patients" class="grid-container">
+
+        <div id="tab-monitor" class="grid-container">
             @foreach (var p in Model.Patients)
             {
                 <div class="patient-card" id="card_@p.PatientId">
                     <div class="p-name">
-                        <span class="status-dot status-ok" id="dot_@p.PatientId"></span>
-                        @p.Name
+                        <span class="status-dot status-ok" id="dot_@p.PatientId"></span> @p.Name
                     </div>
-                    <div class="p-details">
-                        <strong>Patient ID:</strong> #@p.PatientId <br />
-                        <strong>Age:</strong> @p.Age <br />
-                        <strong>Doctor:</strong> Dr. @(p.Doctor?.Name ?? "Unassigned")
+                    <div style="font-size:13px; color:#666;">
+                        <strong>ID:</strong> #@p.PatientId <br />
+                        <strong>Dr.</strong> @(p.Doctor?.Name ?? "Unassigned")
                     </div>
-                    <button class="btn-monitor" onclick="startMonitor(@p.PatientId, '@p.Name')">OPEN MONITOR</button>
+                    <button class="btn-monitor" onclick="startMonitor(@p.PatientId, '@p.Name', @(p.IsPregnant.ToString().ToLower()))">OPEN MONITOR</button>
                 </div>
             }
         </div>
+
+        <div id="tab-details" style="display:none;" class="details-list">
+            <h2 style="border-bottom:1px solid #333; padding-bottom:10px;">Medical Records Database</h2>
+
+            @foreach (var p in Model.Patients)
+            {
+                <div class="detail-card">
+                    <div class="dc-sidebar">
+                        <div class="dc-photo">👤</div>
+                        <div class="dc-id">PID: #@p.PatientId</div>
+                        <div style="font-size:12px; color:#666; margin-top:5px;">@(p.IsPregnant ? "PREGNANCY UNIT" : "GENERAL WARD")</div>
+                    </div>
+                    <div class="dc-content">
+                        <div class="info-group"><span class="info-label">Full Name</span><span class="info-val">@p.Name</span></div>
+                        <div class="info-group"><span class="info-label">Date of Birth</span><span class="info-val">@(p.DateOfBirth == DateTime.MinValue ? "--" : p.DateOfBirth.ToString("dd MMM yyyy"))</span></div>
+                        <div class="info-group"><span class="info-label">Mobile</span><span class="info-val">@(p.Mobile ?? "--")</span></div>
+                        <div class="info-group"><span class="info-label">Address</span><span class="info-val">@(p.Address ?? "--")</span></div>
+                        <div class="info-group"><span class="info-label">Admitted</span><span class="info-val">@(p.AdmissionDate == DateTime.MinValue ? DateTime.Now.ToString("dd MMM yyyy") : p.AdmissionDate.ToString("dd MMM yyyy"))</span></div>
+                        <div class="info-group"><span class="info-label">Blood Type</span><span class="info-val" style="color:var(--neon-red)">@(p.BloodType ?? "--")</span></div>
+
+                        <div class="info-group">
+                            <span class="info-label">Long-Term Meds</span>
+                            <span class="info-val">
+                                @(p.Medications != null && p.Medications.Any()
+                                                            ? string.Join(", ", p.Medications.Select(m => m.DrugName))
+                                                            : "None")
+                            </span>
+                        </div>
+
+                        <div class="info-group">
+                            <span class="info-label">Dosage</span>
+                            <span class="info-val">
+                                @(p.Medications != null && p.Medications.Any()
+                                                            ? string.Join(", ", p.Medications.Select(m => m.Dosage))
+                                                            : "N/A")
+                            </span>
+                        </div>
+
+                        <div class="info-group">
+                            <span class="info-label">Past Surgeries</span>
+                            <span class="info-val">
+                                @(p.Surgeries != null && p.Surgeries.Any()
+                                                            ? string.Join(", ", p.Surgeries.Select(s => $"{s.ProcedureName} ({s.Year})"))
+                                                            : "None Reported")
+                            </span>
+                        </div>
+
+                        <div class="info-group">
+                            <span class="info-label">Chronic Conditions</span>
+                            <span class="info-val" style="color:var(--neon-blue)">
+                                @(p.Conditions != null && p.Conditions.Any()
+                                                            ? string.Join(", ", p.Conditions.Select(c => c.Diagnosis))
+                                                            : "None")
+                            </span>
+                        </div>
+
+                        <div class="info-group"><span class="info-label">Family History</span><span class="info-val">@(p.FamilyHistory ?? "Unknown")</span></div>
+                        <div class="info-group"><span class="info-label">Social History</span><span class="info-val">@(p.SocialHistory ?? "--")</span></div>
+                    </div>
+                </div>
+            }
+        </div>
+
 
         <div id="tab-alerts" style="display:none;">
             <h3 style="border-bottom:1px solid #333; padding-bottom:10px;">Recent Critical Alerts</h3>
@@ -321,59 +429,43 @@
 
     <div id="monitorOverlay">
         <div class="mon-header">
-            <div class="mon-title">ICU MONITOR: <span id="mon_name" style="color:var(--neon-green)">PATIENT</span></div>
-            <button class="mon-close" onclick="closeMonitor()">CLOSE VIEW</button>
+            <div style="font-weight:bold; font-size:20px;">ICU MONITOR: <span id="mon_name" style="color:var(--neon-green)">PATIENT</span></div>
+            <button onclick="closeMonitor()" style="background:#333; color:white; border:none; padding:8px 15px; cursor:pointer;">CLOSE</button>
         </div>
-        <div class="mon-grid">
-            <div class="wave-row">
-                <div class="wave-info" style="color:#00ff41"><div class="w-label">ECG</div><div class="w-val" id="mon_hr">--</div><div class="w-unit">BPM</div></div>
-                <canvas id="cvs_ecg"></canvas>
-            </div>
-            <div class="wave-row">
-                <div class="wave-info" style="color:#00f0ff"><div class="w-label">SpO2</div><div class="w-val" id="mon_spo2">--</div><div class="w-unit">%</div></div>
-                <canvas id="cvs_spo2"></canvas>
-            </div>
-            <div class="wave-row">
-                <div class="wave-info" style="color:#ffee00"><div class="w-label">TEMP</div><div class="w-val" id="mon_temp">--</div><div class="w-unit">°C</div></div>
-                <canvas id="cvs_resp"></canvas>
-            </div>
+        <div class="mon-grid" id="monGrid">
+            <div class="wave-row"><div class="wave-info" style="color:#00ff41"><div class="w-val" id="mon_hr">--</div>BPM</div><canvas id="cvs_ecg"></canvas></div>
+            <div class="wave-row"><div class="wave-info" style="color:#00f0ff"><div class="w-val" id="mon_spo2">--</div>%</div><canvas id="cvs_spo2"></canvas></div>
+            <div class="wave-row"><div class="wave-info" style="color:#ffee00"><div class="w-val" id="mon_temp">--</div>°C</div><canvas id="cvs_resp"></canvas></div>
+            <div class="wave-row" id="row_fetal" style="display:none;"><div class="wave-info text-fetal"><div class="w-val" id="mon_fetal">--</div>FHR</div><canvas id="cvs_fetal"></canvas></div>
         </div>
     </div>
-
     <audio id="audioAlarm" loop src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
     <script>
         let currentPid = null;
         let waves = {};
-        let audioEnabled = false; // Browser protection flag
+        let audioEnabled = false;
 
-        // 1. ENABLE AUDIO ON FIRST CLICK (Browser Requirement)
         document.body.addEventListener('click', () => {
             if (!audioEnabled) {
                 const a = document.getElementById('audioAlarm');
-                // Play empty sound to unlock audio engine
-                a.play().then(() => {
-                    a.pause();
-                    a.currentTime = 0;
-                    audioEnabled = true;
-                }).catch(e => {});
+                a.play().then(() => { a.pause(); a.currentTime = 0; audioEnabled = true; }).catch(e => {});
             }
         }, { once: true });
 
         function showTab(id, btn) {
-            document.getElementById('tab-patients').style.display = id==='patients'?'grid':'none';
+            document.getElementById('tab-monitor').style.display = id==='monitor'?'grid':'none';
+            document.getElementById('tab-details').style.display = id==='details'?'flex':'none';
             document.getElementById('tab-alerts').style.display = id==='alerts'?'block':'none';
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             btn.classList.add('active');
         }
 
         const conn = new signalR.HubConnectionBuilder().withUrl("/VitalsHub").build();
-
         conn.on("ReceiveVitals", d => {
-            // --- VISUAL UPDATES ---
+            // Update Card Dot
             const dot = document.getElementById(`dot_${d.patientId}`);
             const card = document.getElementById(`card_${d.patientId}`);
-
             if(dot && card) {
                 if(d.status === "Critical" || d.status === "Warning") {
                     dot.className = "status-dot status-crit";
@@ -384,26 +476,21 @@
                 }
             }
 
+            // Global Audio
+            if(d.status === "Critical") playSound();
+            else if (currentPid === d.patientId && d.status === "Normal") stopSound();
+
+            // Update Monitor
             if(currentPid === d.patientId) {
                 document.getElementById('mon_hr').innerText = d.ecg;
                 document.getElementById('mon_spo2').innerText = d.spO2;
                 document.getElementById('mon_temp').innerText = d.temp;
-            }
-
-            // --- GLOBAL SOUND LOGIC (THE FIX) ---
-            // If ANY patient sends a Critical status, play sound immediately
-            if (d.status === "Critical") {
-                playSound();
-            }
-            // If we are watching a patient and they become Normal, we can try to stop it
-            else if (currentPid === d.patientId && d.status === "Normal") {
-                stopSound();
+                if(d.isPregnant) document.getElementById('mon_fetal').innerText = d.fetalHR;
             }
         });
-
         conn.start();
 
-        function startMonitor(pid, name) {
+        function startMonitor(pid, name, isPregnant) {
             currentPid = pid;
             document.getElementById('mon_name').innerText = name.toUpperCase();
             document.getElementById('monitorOverlay').style.display = 'grid';
@@ -411,60 +498,47 @@
             if(waves.ecg) waves.ecg.stop();
             if(waves.spo2) waves.spo2.stop();
             if(waves.resp) waves.resp.stop();
+            if(waves.fetal) waves.fetal.stop();
 
             waves.ecg = new WaveController('cvs_ecg', '#00ff41', 'ecg');
             waves.spo2 = new WaveController('cvs_spo2', '#00f0ff', 'sine');
             waves.resp = new WaveController('cvs_resp', '#ffee00', 'resp');
+
+            const grid = document.getElementById('monGrid');
+            const fetalRow = document.getElementById('row_fetal');
+
+            if (isPregnant) {
+                grid.style.gridTemplateRows = "1fr 1fr 1fr 1fr";
+                fetalRow.style.display = "block";
+                waves.fetal = new WaveController('cvs_fetal', '#ff00ff', 'ecg');
+            } else {
+                grid.style.gridTemplateRows = "1fr 1fr 1fr";
+                fetalRow.style.display = "none";
+            }
         }
 
         function closeMonitor() {
             currentPid = null;
             document.getElementById('monitorOverlay').style.display = 'none';
-            // Optional: Stop sound when closing monitor?
-            // Better to leave it on if someone else is critical,
-            // but for this demo, let's stop it to be less annoying.
             stopSound();
         }
 
-        function playSound() {
-            if(!audioEnabled) return; // Wait for user click
-            const a = document.getElementById('audioAlarm');
-            if(a.paused) {
-                a.currentTime = 0;
-                a.play().catch(e => console.log("Audio blocked: click page to enable"));
-            }
-        }
-
-        function stopSound() {
-            const a = document.getElementById('audioAlarm');
-            if(!a.paused) {
-                a.pause();
-                a.currentTime=0;
-            }
-        }
+        function playSound() { if(audioEnabled) { const a = document.getElementById('audioAlarm'); if(a.paused) a.play().catch(e=>{}); } }
+        function stopSound() { const a = document.getElementById('audioAlarm'); if(!a.paused) { a.pause(); a.currentTime=0; } }
 
         class WaveController {
             constructor(canvasId, color, type) {
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
-                this.color = color;
-                this.type = type;
-                this.running = true;
-                this.resize();
-                this.x = 0; this.speed = 2; this.midY = this.canvas.height / 2;
+                this.color = color; this.type = type; this.running = true;
+                this.resize(); this.x = 0; this.speed = 2; this.midY = this.canvas.height / 2;
                 this.animate();
             }
             resize() { this.canvas.width = this.canvas.offsetWidth; this.canvas.height = this.canvas.offsetHeight; this.midY = this.canvas.height / 2; }
-
             getValue(t) {
                 if (this.type === 'ecg') {
-                    let p = t % 100;
-                    if(p > 10 && p < 20) return -10;
-                    if(p >= 35 && p < 45) return -80;
-                    if(p >= 45 && p < 50) return 20;
-                    if(p > 60 && p < 80) return -15; return 0;
-                }
-                else return Math.sin(t * 0.1) * 30;
+                    let p = t % 100; if(p > 10 && p < 20) return -10; if(p >= 35 && p < 45) return -80; if(p >= 45 && p < 50) return 20; if(p > 60 && p < 80) return -15; return 0;
+                } else return Math.sin(t * 0.1) * 30;
             }
             animate() {
                 if(!this.running) return;
@@ -479,8 +553,5 @@
             stop() { this.running = false; }
         }
     </script>
-
-
-
 </body>
 </html>

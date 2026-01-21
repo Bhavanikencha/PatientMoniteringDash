@@ -1,5 +1,4 @@
-﻿
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PatinetMo.Data;
@@ -38,7 +37,7 @@ namespace PatientMo.Services
         private List<VitalSigns> _vitalCache = new List<VitalSigns>();
 
         private DateTime _lastDbSaveTime = DateTime.Now;
-        private readonly TimeSpan _saveInterval = TimeSpan.FromMinutes(1);
+        private readonly TimeSpan _saveInterval = TimeSpan.FromMinutes(1); // Set to 1 min for your review
 
         private readonly ConcurrentDictionary<int, PatientState> _patientStates = new();
 
@@ -68,33 +67,40 @@ namespace PatientMo.Services
                         var state = _patientStates[patient.PatientId];
                         state.Counter++;
 
-                        // --- 1. SIMULATION (Forced Abnormality for Testing) ---
-                        // Every 30 seconds (approx 30 ticks), force Warning/Critical
+                        // --- 1. SIMULATION (Mother) ---
                         bool forceAbnormal = state.Counter % 30 == 0;
 
                         if (forceAbnormal)
                         {
-                            state.HeartRate = random.Next(120, 150); // Warning/Critical Range
+                            state.HeartRate = random.Next(120, 150);
                         }
                         else if (state.LastStatus != "Normal")
                         {
-                            // If currently abnormal, 80% chance to stay abnormal (Simulate persistence)
                             if (random.NextDouble() > 0.2) state.HeartRate = random.Next(120, 150);
-                            else state.HeartRate = 75; // Recovery
+                            else state.HeartRate = 75;
                         }
                         else
                         {
-                            // Normal Drift
                             state.HeartRate = Math.Clamp(state.HeartRate + random.Next(-2, 3), 60, 100);
                         }
 
-                        // Recalculate O2/Temp slightly
                         state.Oxygen = (state.HeartRate > 110) ? random.Next(90, 95) : random.Next(96, 100);
 
-                        // --- 2. GET STATUS ---
+                        // --- 2. SIMULATION (Fetus - Only if Pregnant) ---
+                        int? fetalHr = null;
+                        if (patient.IsPregnant)
+                        {
+                            // Fetal HR is typically 110-160
+                            fetalHr = 140 + random.Next(-5, 15);
+
+                            // Occasional dip simulation
+                            if (random.Next(0, 100) > 98) fetalHr = 100;
+                        }
+
+                        // --- 3. GET STATUS ---
                         string currentStatus = _alertService.GetStatus(state.HeartRate, state.Oxygen, state.Temperature);
 
-                        // --- 3. STORAGE LOGIC (Requirement: Store EVERY abnormal vital) ---
+                        // --- 4. STORAGE LOGIC ---
                         if (currentStatus != "Normal")
                         {
                             _vitalCache.Add(new VitalSigns
@@ -103,17 +109,17 @@ namespace PatientMo.Services
                                 HeartRate = state.HeartRate,
                                 Oxygen = state.Oxygen,
                                 Temperature = state.Temperature,
+                                FetalHeartRate = fetalHr, // Store Fetal Data
                                 UpdatedAt = DateTime.Now
                             });
                         }
 
-                        // --- 4. ALERT LOGIC (Requirement: 1 Minute Throttle) ---
+                        // --- 5. ALERT LOGIC ---
                         if (currentStatus != "Normal")
                         {
                             bool isStatusChange = (currentStatus != state.LastStatus);
                             bool isTimeExpired = (DateTime.Now - state.LastAlertSentTime).TotalMinutes >= 1;
 
-                            // Send Alert IF: Status Changed OR 1 Minute has passed
                             if (isStatusChange || isTimeExpired)
                             {
                                 var alert = new AlertHistory
@@ -124,28 +130,29 @@ namespace PatientMo.Services
                                     Timestamp = DateTime.Now
                                 };
                                 _alertCache.Add(alert);
-
-                                // Update tracking
                                 state.LastAlertSentTime = DateTime.Now;
-                                Console.WriteLine($"[ALERT SENT] {patient.Name} - {currentStatus}");
                             }
                         }
 
                         state.LastStatus = currentStatus;
 
-                        // --- 5. SEND TO UI ---
+                        // --- 6. SEND TO UI ---
                         var payload = new
                         {
                             PatientId = patient.PatientId,
                             ECG = state.HeartRate,
                             SpO2 = state.Oxygen,
                             Temp = state.Temperature,
-                            Status = currentStatus
+                            Status = currentStatus,
+
+                            // NEW: Send Pregnancy Data
+                            IsPregnant = patient.IsPregnant,
+                            FetalHR = fetalHr
                         };
                         await _hub.Clients.All.SendAsync("ReceiveVitals", payload, stoppingToken);
                     }
 
-                    // --- 6. DATABASE BATCH SAVE ---
+                    // --- 7. DATABASE BATCH SAVE ---
                     if (DateTime.Now - _lastDbSaveTime > _saveInterval)
                     {
                         if (_alertCache.Any() || _vitalCache.Any())
@@ -164,3 +171,4 @@ namespace PatientMo.Services
         }
     }
 }
+

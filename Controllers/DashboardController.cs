@@ -14,23 +14,22 @@ namespace PatinetMo.Controllers
             _context = context;
         }
 
+
         public IActionResult Index()
         {
             var viewModel = new DashboardViewModel
             {
-                // Include Doctor to display their name
-                Patients = _context.Patients.Include(p => p.Doctor).ToList(),
+                Patients = _context.Patients
+                    .Include(p => p.Doctor)
+                    .Include(p => p.Medications) // Load Meds
+                    .Include(p => p.Surgeries)   // Load Surgeries
+                    .Include(p => p.Conditions)  // Load Conditions
+                    .ToList(),
 
-                // Fetch last 50 alerts, newest first, including Patient/Doctor details
-                RecentAlerts = _context.AlertHistory
-                                       .Include(a => a.Patient) // Assuming AlertHistory has navigation property to Patient
-                                       .ThenInclude(p => p.Doctor)
-                                       .OrderByDescending(a => a.Timestamp)
-                                       .Take(50)
-                                       .ToList()
+                RecentAlerts = _context.AlertHistory.Include(a => a.Patient).ToList()
             };
-
             return View(viewModel);
         }
+
     }
 }

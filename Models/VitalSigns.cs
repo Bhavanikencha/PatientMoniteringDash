@@ -8,7 +8,8 @@
             public int HeartRate { get; set; }
             public int Oxygen { get; set; }
             public float Temperature { get; set; }
-            public DateTime UpdatedAt { get; set; }
+        public int? FetalHeartRate { get; set; }
+        public DateTime UpdatedAt { get; set; }
         
     }
 }
