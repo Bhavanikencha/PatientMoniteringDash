@@ -1,0 +1,420 @@
+:root {
+  --bg-dark: #0a0a0a;
+  --sidebar-width: 260px;
+  --neon-green: #00ff41;
+  --neon-red: #ff2a2a;
+  --neon-blue: #00f0ff;
+  --neon-yellow: #ffee00;
+  --neon-purple: #d500f9;
+  --text-primary: #e0e0e0;
+  --text-secondary: #949494;
+  --card-bg: #141414;
+  --border-color: #333;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', 'Segoe UI', sans-serif; /* Cleaner font stack */
+  -webkit-font-smoothing: antialiased;
+  /* SCROLLBAR FIX: Allow body to scroll naturally */
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* --- SIDEBAR (Fixed Position) --- */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: #050505;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  z-index: 100;
+}
+
+.brand {
+  font-size: 24px;
+  font-weight: 900;
+  margin-bottom: 40px;
+  letter-spacing: 1.5px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand span { text-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
+
+.nav-btn {
+  padding: 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.nav-btn.active {
+  background: linear-gradient(90deg, rgba(0, 255, 65, 0.1), transparent);
+  color: #fff;
+  border-left: 3px solid var(--neon-green);
+}
+
+/* --- MAIN CONTENT (Offset for Sidebar) --- */
+.main-content {
+  margin-left: var(--sidebar-width);
+  padding: 30px 40px;
+  min-height: 100vh;
+  background: radial-gradient(circle at top right, #1a1a1a 0%, #0a0a0a 40%);
+}
+
+/* --- VIEW 1: PATIENT LIST (Horizontal Flow) --- */
+.flex-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start; /* Prevents stretching height */
+}
+
+/* Patient Card Styles */
+.patient-card {
+  flex: 1 1 300px; /* Grow, Shrink, Basis */
+  max-width: 400px; /* Don't get too wide on huge screens */
+  min-width: 280px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.patient-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+  border-color: #555;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.patient-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.status-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.live-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* CHANGED: 3 Columns for HR, SpO2, Temp */
+  gap: 5px;
+  background: rgba(0,0,0,0.3);
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+
+
+.metric-box {
+  display: flex;
+  flex-direction: column;
+}
+.m-label { font-size: 10px; color: #666; font-weight: bold; }
+.m-val { font-size: 16px; font-weight: bold; font-family: 'Courier New', monospace; }
+
+.btn-monitor {
+  margin-top: 15px;
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(to right, #222, #1a1a1a);
+  border: 1px solid #333;
+  color: var(--neon-green);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1px;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+.btn-monitor:hover {
+  background: var(--neon-green);
+  color: #000;
+  box-shadow: 0 0 15px rgba(0,255,65,0.4);
+}
+
+/* --- MONITOR OVERLAY (Clean Separation) --- */
+.monitor-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: #000;
+  z-index: 9999; /* Top level */
+  display: flex;
+  flex-direction: column;
+}
+
+.mon-header {
+  height: 60px;
+  background: #111;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+}
+
+.close-btn {
+  background: #333;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.close-btn:hover { background: #444; }
+
+.mon-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column; /* Rows of charts */
+}
+
+/* The Row Container */
+.wave-row {
+  flex: 1; /* Distribute height equally */
+  display: flex; /* Horizontal flex: [Canvas | DataSidebar] */
+  border-bottom: 1px solid #222;
+  position: relative;
+}
+
+/* Left side: The Canvas */
+.canvas-area {
+  flex: 1; /* Takes remaining width */
+  position: relative;
+  background-image: 
+    linear-gradient(rgba(20,20,20,1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20,20,20,1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  overflow: hidden;
+}
+
+/* Right side: The Data Numbers */
+.data-sidebar {
+  width: 200px;
+  background: #080808;
+  border-left: 2px solid #333;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.ds-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.ds-value {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+  font-family: 'Consolas', monospace;
+  margin: 5px 0;
+}
+
+.ds-unit {
+  font-size: 14px;
+  color: #888;
+}
+
+/* --- DETAILS & ALERTS --- */
+
+/* 1. The Container holding the cards */
+.details-container {
+  display: flex;
+  flex-direction: column; /* Stack items vertically */
+  width: 100%;            /* Fill the main-content width */
+  gap: 20px;
+}
+
+/* 2. The Card itself */
+.detail-card {
+  width: 100%;            /* Force card to fill container */
+  min-width: 800px;       /* Prevent shrinking on small screens */
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;          /* Side-by-side layout (Sidebar | Content) */
+  flex-direction: row;    
+  min-height: 250px;
+  box-sizing: border-box;
+}
+
+/* 3. The Sidebar (Photo area) */
+.dc-sidebar {
+  width: 220px;           /* Fixed width */
+  flex-shrink: 0;         /* NEVER shrink */
+  background: #0f0f0f;
+  border-right: 1px solid #222;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+/* 4. The Content Area */
+.dc-content {
+  flex-grow: 1;           /* Take all remaining space */
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 5. The Grid inside the content */
+.dc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Force 4 columns */
+  gap: 20px;
+  width: 100%;
+}
+
+/* Small screen adjustment */
+@media (max-width: 1200px) {
+  .dc-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+
+
+/* --- IMPROVED DETAILS VIEW --- */
+
+
+
+
+.dc-photo {
+  font-size: 50px;
+  margin-bottom: 15px;
+  background: #1a1a1a;
+  height: 80px;
+  width: 80px;
+  line-height: 80px;
+  border-radius: 50%;
+  border: 2px solid #333;
+}
+
+
+
+/* Section Dividers within the card */
+
+
+
+.dc-photo {
+  font-size: 50px;
+  margin-bottom: 15px;
+  background: #1a1a1a;
+  height: 90px;
+  width: 90px;
+  line-height: 90px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+/* Section Dividers */
+.dc-section-title {
+  font-size: 14px;
+  color: var(--neon-green);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+  font-weight: 800;
+}
+
+/* GRID LAYOUT FIX: Spreads items horizontally */
+
+
+/* Full width items (Address, Family History) */
+.dc-full-width {
+  grid-column: 1 / -1; /* Span all columns */
+}
+
+.info-label {
+  font-size: 11px;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: block;
+  font-weight: 700;
+}
+
+.info-val {
+  font-size: 16px;
+  color: #e0e0e0;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* List styling */
+.info-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #ccc;
+  font-size: 15px;
+}
+.info-list li { margin-bottom: 6px; }
+
+.alert-item {
+  background: #110505;
+  border-left: 4px solid var(--neon-red);
+  padding: 15px 20px;
+  margin-bottom: 12px;
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+

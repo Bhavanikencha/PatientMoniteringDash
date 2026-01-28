@@ -1,15 +1,37 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using System;
 using System.Threading.Tasks;
 
 namespace PatinetMo.Hubs
 {
     public class VitalsHub : Hub
     {
-        // This method is optional but useful for debugging.
-        // It runs automatically when a browser connects.
-        public override async Task OnConnectedAsync()
+        public async Task JoinPatientMonitor(int patientId)
         {
-            await base.OnConnectedAsync();
+            try
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"Patient_{patientId}");
+            }
+            catch (Exception ex)
+            {
+                // This keeps the connection alive even if joining fails
+                Console.WriteLine($"Error Joining Group: {ex.Message}");
+            }
+        }
+
+        public async Task LeavePatientMonitor(int patientId)
+        {
+            try
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"Patient_{patientId}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error Leaving Group: {ex.Message}");
+            }
         }
     }
 }
+
+
+
