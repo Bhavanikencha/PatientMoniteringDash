@@ -23,6 +23,8 @@ function App() {
   const [view, setView] = useState('monitor'); // monitor, details, alerts
   const [activePatient, setActivePatient] = useState(null);
   const [connection, setConnection] = useState(null);
+  const [monitorQuery, setMonitorQuery] = useState('');
+  const [detailsQuery, setDetailsQuery] = useState('');
 
   // Audio Logic
   const audioRef = useRef(new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg"));
@@ -41,7 +43,7 @@ function App() {
   const getWaveData = (pid) => waveforms[pid] || {};
 
   // 1. INITIAL FETCH
-  useEffect(() => {
+   useEffect(() => {
     const fetchData = async () => {
         try {
             const pRes = await axios.get(`${API_URL}/api/dashboard/patients`);
@@ -54,10 +56,24 @@ function App() {
     };
     fetchData();
 
-    const enableAudio = () => { audioEnabled.current = true; };
-    window.addEventListener('click', enableAudio, { once: true });
+    // --- FIX: PROPERLY UNLOCK AUDIO ---
+    const unlockAudio = () => {
+        audioEnabled.current = true;
+        // We must actually try to play the sound once on click, then pause it.
+        // This tells the browser "The user allows this sound."
+        audioRef.current.play()
+            .then(() => {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+                console.log("Audio Engine Unlocked 🔊");
+            })
+            .catch(err => console.error("Audio Unlock Failed:", err));
+    };
+
+    // Listen for the first click anywhere on the page
+    window.addEventListener('click', unlockAudio, { once: true });
     
-    return () => window.removeEventListener('click', enableAudio);
+    return () => window.removeEventListener('click', unlockAudio);
   }, []);
 
   // 2. SIGNALR SETUP (With Strict Mode Safety)
@@ -94,10 +110,35 @@ function App() {
       }
     });
 
-    conn.on('ReceiveWaveform', (data) => {
+ conn.on('ReceiveDashboardUpdate', (data) => {
       const pid = data.patientId || data.PatientId;
-      setWaveforms(prev => ({ ...prev, [pid]: data }));
+      setDashboardVitals(prev => ({ ...prev, [pid]: data }));
+
+      const status = data.status || data.Status;
+      
+      // --- FIX: BETTER PLAYBACK LOGIC ---
+      if (status === "Critical" && audioEnabled.current) {
+         // Reset time so it plays from start even if triggered rapidly
+         audioRef.current.currentTime = 0; 
+         audioRef.current.play()
+             .catch(e => console.warn("Audio blocked or failed:", e));
+      }
     });
+
+    // --- WAVEFORM / FETAL UPDATES ---
+    // Server may emit waveform or fetal-specific events; listen for common names
+    const handleWaveUpdate = (data) => {
+      if (!data) return;
+      const pid = data.patientId || data.PatientId || data.pid;
+      if (!pid) return;
+      setWaveforms(prev => ({ ...prev, [pid]: { ...(prev[pid] || {}), ...data } }));
+    };
+
+    conn.on('ReceiveWaveform', handleWaveUpdate);
+    conn.on('ReceiveWaveUpdate', handleWaveUpdate);
+    conn.on('ReceiveFetalUpdate', handleWaveUpdate);
+    conn.on('ReceiveFetal', handleWaveUpdate);
+
 
     // Clean up on unmount
     return () => {
@@ -127,6 +168,37 @@ function App() {
     setWaveforms({}); 
   };
 
+
+  
+// ... inside App component ...
+  
+  // PRE-CALCULATE MONITOR CLASSES
+  // We calculate this here so the JSX stays clean and doesn't crash
+  let monitorClasses = { hr: '', spo2: '', temp: '', fetal: '', overlay: 'monitor-overlay' };
+  let isCrit = false, isWarn = false;
+
+  if (activePatient) {
+      const v = getGridData(activePatient.patientId);
+      const status = getVal(v, 'Status');
+      isCrit = status === "Critical";
+      isWarn = status === "Warning";
+
+      // 1. Overlay Border Class
+      if (isCrit) monitorClasses.overlay += " critical";
+      else if (isWarn) monitorClasses.overlay += " warning";
+
+      // 2. Individual Box Classes
+      monitorClasses.hr = checkVitalStatus('HR', getVal(v, 'ECG'));
+      monitorClasses.spo2 = checkVitalStatus('SPO2', getVal(v, 'SpO2'));
+      monitorClasses.temp = checkVitalStatus('TEMP', getVal(v, 'Temp'));
+      
+      // Check both streams for Fetal Data
+      const waveData = getWaveData(activePatient.patientId) || {}; 
+      const fetalVal = getVal(waveData, 'FetalHR');
+      monitorClasses.fetal = checkVitalStatus('FETAL', fetalVal);
+  }
+
+
   return (
     <div className="app-container">
       {/* SIDEBAR */}
@@ -144,17 +216,36 @@ function App() {
         {view === 'monitor' && (
           <div>
             <h2 style={{borderBottom:'1px solid #333', paddingBottom:'15px', marginBottom:'20px'}}>ICU Ward Overview</h2>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+              <div style={{color:'#999', fontSize:13}}>Showing {patients.length} patients</div>
+              <div className="search-container">
+                <input
+                  className="search-input"
+                  placeholder="Search patients by name or ID..."
+                  value={monitorQuery}
+                  onChange={e => setMonitorQuery(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="flex-container">
                 {patients.length === 0 && <div style={{color:'#666', fontStyle:'italic'}}>Loading patients...</div>}
-                
-                {patients.map(p => (
-                <PatientCard 
-                    key={p.patientId} 
-                    patient={p} 
-                    vitals={getGridData(p.patientId)} 
-                    onMonitor={handleOpenMonitor}
-                />
-                ))}
+
+                {patients
+                  .filter(p => {
+                    if (!monitorQuery) return true;
+                    const q = monitorQuery.toString().toLowerCase();
+                    return (p.name || '').toLowerCase().includes(q)
+                        || (p.patientId || '').toString().toLowerCase().includes(q)
+                        || (p.doctorName || '').toLowerCase().includes(q);
+                  })
+                  .map(p => (
+                    <PatientCard
+                      key={p.patientId}
+                      patient={p}
+                      vitals={getGridData(p.patientId)}
+                      onMonitor={handleOpenMonitor}
+                    />
+                  ))}
             </div>
           </div>
         )}
@@ -165,9 +256,28 @@ function App() {
         {view === 'details' && (
            <div style={{ width: '100%' }}> {/* Ensure parent is full width */}
              <h2 style={{borderBottom:'1px solid #333', paddingBottom:'15px', marginBottom:'20px'}}>Medical Database</h2>
+             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+               <div style={{color:'#999', fontSize:13}}>Records: {patients.length}</div>
+               <div className="search-container">
+                 <input
+                   className="search-input"
+                   placeholder="Search records by name, ID, doctor..."
+                   value={detailsQuery}
+                   onChange={e => setDetailsQuery(e.target.value)}
+                 />
+               </div>
+             </div>
 
-             
-             {patients.map(p => (
+             {patients
+               .filter(p => {
+                 if (!detailsQuery) return true;
+                 const q = detailsQuery.toLowerCase();
+                 return (p.name || '').toLowerCase().includes(q)
+                     || (p.patientId || '').toString().toLowerCase().includes(q)
+                     || (p.doctorName || '').toLowerCase().includes(q)
+                     || (p.mobile || '').toLowerCase().includes(q);
+               })
+               .map(p => (
                <div key={p.patientId} className="detail-card">
                  
                  {/* LEFT SIDEBAR: ID & Photo */}
@@ -273,72 +383,112 @@ function App() {
       </div>
 
       {/* --- OVERLAY: FULL SCREEN MONITOR --- */}
-      {activePatient && (
-        <div className="monitor-overlay">
+       {activePatient && (
+        <div className={monitorClasses.overlay}>
+          
+          {/* Global Banner */}
+          {isCrit && <div className="alert-banner banner-crit">⚠️ CRITICAL CONDITION ⚠️</div>}
+          {isWarn && !isCrit && <div className="alert-banner banner-warn">⚠️ PATIENT WARNING ⚠️</div>}
+
           <div className="mon-header">
             <div style={{fontSize:'20px', fontWeight:'bold'}}>
-                LIVE FEED: <span style={{color:'var(--neon-green)'}}>{activePatient.name.toUpperCase()}</span> 
+                LIVE FEED: <span style={{color:'var(--neon-green)'}}>{activePatient.name.toUpperCase()}</span>
                 <span style={{fontSize:'12px', color:'#666', marginLeft:'15px'}}>ID: {activePatient.patientId}</span>
             </div>
             <button className="close-btn" onClick={handleCloseMonitor}>CLOSE FEED</button>
           </div>
+          
+          <div className="mon-grid">
+             {/* ROW 1: ECG */}
+             <div className="wave-row">
+               <div className="canvas-area">
+                   <MonitorCanvas type="ecg" color="#00ff41" />
+               </div>
+               {/* Use pre-calculated class */}
+               <div className={`data-sidebar ${monitorClasses.hr}`} style={{color:'var(--neon-green)', borderColor:'var(--neon-green)'}}>
+                   <span className="ds-label">Heart Rate</span>
+                   <span className="ds-value">{getVal(getGridData(activePatient.patientId), 'ECG')}</span>
+                   <span className="ds-unit">BPM</span>
+               </div>
+             </div>
 
-         <div className="mon-grid">
-            {/* ROW 1: ECG */}
-            <div className="wave-row">
-                <div className="canvas-area">
-                    <MonitorCanvas type="ecg" color="#00ff41" />
-                </div>
-                <div className="data-sidebar" style={{color:'var(--neon-green)', borderColor:'var(--neon-green)'}}>
-                    <span className="ds-label">Heart Rate</span>
-                    <span className="ds-value">{getVal(getGridData(activePatient.patientId), 'ECG')}</span>
-                    <span className="ds-unit">BPM</span>
-                </div>
-            </div>
+             {/* ROW 2: SPO2 */}
+             <div className="wave-row">
+               <div className="canvas-area">
+                   <MonitorCanvas type="spo2" color="#00f0ff" />
+               </div>
+               <div className={`data-sidebar ${monitorClasses.spo2}`} style={{color:'var(--neon-blue)', borderColor:'var(--neon-blue)'}}>
+                   <span className="ds-label">SpO2</span>
+                   <span className="ds-value">{getVal(getGridData(activePatient.patientId), 'SpO2')}</span>
+                   <span className="ds-unit">%</span>
+               </div>
+             </div>
 
-            {/* ROW 2: SPO2 */}
-            <div className="wave-row">
-                <div className="canvas-area">
-                    <MonitorCanvas type="spo2" color="#00f0ff" />
-                </div>
-                <div className="data-sidebar" style={{color:'var(--neon-blue)', borderColor:'var(--neon-blue)'}}>
-                    <span className="ds-label">SpO2</span>
-                    <span className="ds-value">{getVal(getGridData(activePatient.patientId), 'SpO2')}</span>
-                    <span className="ds-unit">%</span>
-                </div>
-            </div>
+             {/* ROW 3: TEMP */}
+             <div className="wave-row">
+               <div className="canvas-area">
+                   <MonitorCanvas type="resp" color="#ffee00" />
+               </div>
+               <div className={`data-sidebar ${monitorClasses.temp}`} style={{color:'var(--neon-yellow)', borderColor:'var(--neon-yellow)'}}>
+                   <span className="ds-label">Temp</span>
+                   <span className="ds-value">{formatTemp(getVal(getGridData(activePatient.patientId), 'Temp'))}</span>
+                   <span className="ds-unit">°C</span>
+               </div>
+             </div>
 
-            {/* ROW 3: RESP/TEMP */}
-            <div className="wave-row">
-                <div className="canvas-area">
-                    <MonitorCanvas type="resp" color="#ffee00" />
-                </div>
-                <div className="data-sidebar" style={{color:'var(--neon-yellow)', borderColor:'var(--neon-yellow)'}}>
-                    <span className="ds-label">Temp</span>
-                    <span className="ds-value">{getVal(getGridData(activePatient.patientId), 'Temp')}</span>
-                    <span className="ds-unit">°C</span>
-                </div>
-            </div>
-
-            {/* ROW 4: FETAL (Conditional) */}
-            {activePatient.isPregnant && (
-                <div className="wave-row">
-                    <div className="canvas-area">
-                        <MonitorCanvas type="ecg" color="#d500f9" />
-                    </div>
-                    <div className="data-sidebar" style={{color:'var(--neon-purple)', borderColor:'var(--neon-purple)'}}>
-                        <span className="ds-label">Fetal HR</span>
-                        {/* THIS LINE WAS CAUSING THE ERROR */}
-                        <span className="ds-value">{getVal(getWaveData(activePatient.patientId), 'FetalHR')}</span>
-                        <span className="ds-unit">BPM</span>
-                    </div>
-                </div>
-            )}
-         </div>
-        </div> 
+             {/* ROW 4: FETAL */}
+             {activePatient.isPregnant && (
+               <div className="wave-row">
+                 <div className="canvas-area">
+                     <MonitorCanvas type="ecg" color="#d500f9" />
+                 </div>
+                 <div className={`data-sidebar ${monitorClasses.fetal}`} style={{color:'var(--neon-purple)', borderColor:'var(--neon-purple)'}}>
+                     <span className="ds-label">Fetal HR</span>
+                     <span className="ds-value">{getVal(getWaveData(activePatient.patientId), 'FetalHR')}</span>
+                     <span className="ds-unit">BPM</span>
+                 </div>
+               </div>
+             )}
+          </div>
+        </div>
       )}
+
+
     </div>
   );
 }
+
+// Returns CSS class: "" (Normal), "ds-warning", or "ds-critical"
+const checkVitalStatus = (type, val) => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return ""; // No data, no alert
+
+    switch(type) {
+        case 'HR': // Heart Rate (Normal: 60-100)
+            if (num > 130 || num < 40) return "ds-critical";
+            if (num > 100 || num < 50) return "ds-warning";
+            return "";
+        case 'SPO2': // Oxygen (Normal: > 95)
+            if (num < 90) return "ds-critical";
+            if (num < 95) return "ds-warning";
+            return "";
+        case 'TEMP': // Temp (Normal: 36.5 - 37.5)
+            if (num > 39.0) return "ds-critical";
+            if (num > 37.5) return "ds-warning";
+            return "";
+        case 'FETAL': // Fetal HR (Normal: 110-160)
+            if (num < 100 || num > 180) return "ds-critical";
+            return "";
+        default: return "";
+    }
+};
+
+// Ensure formatTemp is available too if you haven't added it yet
+const formatTemp = (val) => {
+    const num = Number(val);
+    return !isNaN(num) ? num.toFixed(1) : '--';
+};
+
+
 
 export default App;
